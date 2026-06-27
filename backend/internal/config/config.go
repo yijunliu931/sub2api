@@ -1725,7 +1725,7 @@ func setDefaults() {
 	viper.SetDefault("redis.enable_tls", false)
 
 	// Ops (vNext)
-	viper.SetDefault("ops.enabled", true)
+	viper.SetDefault("ops.enabled", false) // was true: 关闭运维监控采集/聚合/告警(leader-lock 心跳刷 Redis),不影响 API 网关本身
 	viper.SetDefault("ops.use_preaggregated_tables", true)
 	viper.SetDefault("ops.cleanup.enabled", true)
 	viper.SetDefault("ops.cleanup.schedule", "0 2 * * *")
@@ -1789,12 +1789,12 @@ func setDefaults() {
 	// Dashboard cache
 	viper.SetDefault("dashboard_cache.enabled", true)
 	viper.SetDefault("dashboard_cache.key_prefix", "sub2api:")
-	viper.SetDefault("dashboard_cache.stats_fresh_ttl_seconds", 15)
-	viper.SetDefault("dashboard_cache.stats_ttl_seconds", 30)
+	viper.SetDefault("dashboard_cache.stats_fresh_ttl_seconds", 120) // was 15: 降低后台仪表盘缓存刷新频率以省 Redis 命令
+	viper.SetDefault("dashboard_cache.stats_ttl_seconds", 300)       // was 30
 	viper.SetDefault("dashboard_cache.stats_refresh_timeout_seconds", 30)
 
 	// Dashboard aggregation
-	viper.SetDefault("dashboard_aggregation.enabled", true)
+	viper.SetDefault("dashboard_aggregation.enabled", false) // was true: 关闭仪表盘历史聚合(leader-lock 心跳刷 Redis),不影响 API,实时数据仍有 dashboard_cache
 	viper.SetDefault("dashboard_aggregation.interval_seconds", 60)
 	viper.SetDefault("dashboard_aggregation.lookback_seconds", 120)
 	viper.SetDefault("dashboard_aggregation.backfill_enabled", false)
@@ -1925,16 +1925,16 @@ func setDefaults() {
 	viper.SetDefault("gateway.scheduling.load_batch_cache_ttl_ms", 200)
 	viper.SetDefault("gateway.scheduling.snapshot_mget_chunk_size", 128)
 	viper.SetDefault("gateway.scheduling.snapshot_write_chunk_size", 256)
-	viper.SetDefault("gateway.scheduling.slot_cleanup_interval", 30*time.Second)
+	viper.SetDefault("gateway.scheduling.slot_cleanup_interval", 300*time.Second) // was 30s: 并发槽位 GC 频率,放慢省 Redis
 	viper.SetDefault("gateway.scheduling.db_fallback_enabled", true)
 	viper.SetDefault("gateway.scheduling.db_fallback_timeout_seconds", 0)
 	viper.SetDefault("gateway.scheduling.db_fallback_max_qps", 0)
-	viper.SetDefault("gateway.scheduling.outbox_poll_interval_seconds", 1)
-	viper.SetDefault("gateway.scheduling.outbox_lag_warn_seconds", 5)
-	viper.SetDefault("gateway.scheduling.outbox_lag_rebuild_seconds", 10)
+	viper.SetDefault("gateway.scheduling.outbox_poll_interval_seconds", 30) // was 1: 调度快照增量轮询;每 tick 读一次 Redis watermark,这是最大的 Redis 命令来源。账号/分组变更最多 30s 生效,API 转发不受影响
+	viper.SetDefault("gateway.scheduling.outbox_lag_warn_seconds", 60)      // was 5: 配合放慢的轮询,避免误报滞后
+	viper.SetDefault("gateway.scheduling.outbox_lag_rebuild_seconds", 120)  // was 10: 配合放慢的轮询,避免频繁触发昂贵的全量重建
 	viper.SetDefault("gateway.scheduling.outbox_lag_rebuild_failures", 3)
 	viper.SetDefault("gateway.scheduling.outbox_backlog_rebuild_rows", 10000)
-	viper.SetDefault("gateway.scheduling.full_rebuild_interval_seconds", 300)
+	viper.SetDefault("gateway.scheduling.full_rebuild_interval_seconds", 1800) // was 300: 周期性全量重建快照(写大批 Redis),作为兜底由 outbox 增量保鲜,放到 30 分钟一次
 	viper.SetDefault("gateway.usage_record.worker_count", 128)
 	viper.SetDefault("gateway.usage_record.queue_size", 16384)
 	viper.SetDefault("gateway.usage_record.task_timeout_seconds", 5)
